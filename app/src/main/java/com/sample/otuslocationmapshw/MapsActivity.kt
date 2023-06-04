@@ -1,6 +1,10 @@
 package com.sample.otuslocationmapshw
 
+import android.Manifest.permission.ACCESS_COARSE_LOCATION
+import android.Manifest.permission.ACCESS_FINE_LOCATION
+import android.annotation.SuppressLint
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.os.Bundle
@@ -8,6 +12,7 @@ import android.view.Menu
 import android.view.MenuItem
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.exifinterface.media.ExifInterface
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
@@ -32,6 +37,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
     ) {
         if (it.resultCode == CameraActivity.SUCCESS_RESULT_CODE) {
             // TODO("Обновить точки на карте при получении результата от камеры")
+            showPreviewsOnMap()
         }
     }
 
@@ -41,9 +47,23 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         binding = ActivityMapsBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        val mapFragment = supportFragmentManager
-            .findFragmentById(R.id.map) as SupportMapFragment
         // TODO("Вызвать инициализацию карты")
+        val mapFragment = supportFragmentManager.findFragmentById(R.id.map) as SupportMapFragment
+        mapFragment.getMapAsync { onMapReady(it) }
+//            OnMapReadyCallback {
+//                map = it
+//                map.apply {
+//                    isBuildingsEnabled = true
+//                    isTrafficEnabled = true
+//                    if (permissionsGranted(arrayOf(
+//                            ACCESS_FINE_LOCATION,
+//                            ACCESS_COARSE_LOCATION
+//                        )))
+//                        isMyLocationEnabled = true
+//                }
+//            }
+//        }
+
     }
 
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
@@ -63,32 +83,51 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         }
     }
 
+    @SuppressLint("MissingPermission")
     override fun onMapReady(googleMap: GoogleMap) {
         map = googleMap
+
+        map.apply {
+
+            isBuildingsEnabled = true
+            isTrafficEnabled = true
+            if (permissionsGranted(arrayOf(
+                    ACCESS_FINE_LOCATION,
+                    ACCESS_COARSE_LOCATION
+                )))
+                isMyLocationEnabled = true
+        }
 
         showPreviewsOnMap()
     }
 
     private fun showPreviewsOnMap() {
-        map.clear()
-        val folder = File("${filesDir.absolutePath}/photos/")
-        folder.listFiles()?.forEach {
-            val exifInterface = ExifInterface(it)
-            val location = locationDataUtils.getLocationFromExif(exifInterface)
-            val point = LatLng(location.latitude, location.longitude)
-            val pinBitmap = Bitmap.createScaledBitmap(
-                BitmapFactory.decodeFile(
-                    it.path,
-                    BitmapFactory.Options().apply {
-                        inPreferredConfig = Bitmap.Config.ARGB_8888
-                    }), 64, 64, false
-            )
-            // TODO("Указать pinBitmap как иконку для маркера")
-            map.addMarker(
-                MarkerOptions()
-                    .position(point)
-            )
-            // TODO("Передвинуть карту к местоположению последнего фото")
+        if (map != null)
+        {
+            map.clear()
+            val folder = File("${filesDir.absolutePath}/photos/")
+            folder.listFiles()?.forEach {
+                val exifInterface = ExifInterface(it)
+                val location = locationDataUtils.getLocationFromExif(exifInterface)
+                val point = LatLng(location.latitude, location.longitude)
+                val pinBitmap = Bitmap.createScaledBitmap(
+                    BitmapFactory.decodeFile(
+                        it.path,
+                        BitmapFactory.Options().apply {
+                            inPreferredConfig = Bitmap.Config.ARGB_8888
+                        }), 64, 64, false
+                )
+                // TODO("Указать pinBitmap как иконку для маркера")
+                map.addMarker(
+                    MarkerOptions().apply { icon(BitmapDescriptorFactory.fromBitmap(pinBitmap)) }
+                        .position(point)
+                )
+                // TODO("Передвинуть карту к местоположению последнего фото")
+                map.moveCamera(CameraUpdateFactory.newLatLng(LatLng(location.latitude, location.longitude)))
+            }
         }
     }
+
+    private fun permissionsGranted(permissions: Array<out String>) = permissions.all { ContextCompat.checkSelfPermission(baseContext, it) == PackageManager.PERMISSION_GRANTED }
+
 }
