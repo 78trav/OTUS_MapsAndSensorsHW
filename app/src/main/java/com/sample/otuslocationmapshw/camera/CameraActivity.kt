@@ -61,6 +61,11 @@ class CameraActivity : AppCompatActivity() {
         binding = ActivityCameraBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        // TODO("Получить экземпляр SensorManager")
+        sensorManager = this.getSystemService(SensorManager::class.java)
+
+        // TODO("Добавить проверку на наличие датчика акселерометра и присвоить значение tiltSensor")
+        tiltSensor = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
 
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
 
@@ -76,29 +81,6 @@ class CameraActivity : AppCompatActivity() {
             ActivityCompat.requestPermissions(
                 this, REQUIRED_PERMISSIONS, REQUEST_CODE_PERMISSIONS
             )
-        }
-
-        // TODO("Получить экземпляр SensorManager")
-        sensorManager = this.getSystemService(SensorManager::class.java)
-
-        // TODO("Добавить проверку на наличие датчика акселерометра и присвоить значение tiltSensor")
-        tiltSensor = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
-        if (tiltSensor != null) {
-
-            // TODO("Подписаться на получение событий обновления датчика")
-
-            sensorEventListener = object : SensorEventListener {
-                override fun onSensorChanged(event: SensorEvent) {
-                    val tilt = event.values[2]
-                    binding.errorTextView.visibility = if (abs(tilt) > 2) View.VISIBLE else View.GONE
-                }
-
-                override fun onAccuracyChanged(sensor: Sensor, accuracy: Int) {
-                    //nothing to do
-                }
-            }
-
-            sensorManager.registerListener(sensorEventListener, tiltSensor, SensorManager.SENSOR_DELAY_UI)
         }
 
 //        cameraProviderFuture.addListener({
@@ -222,12 +204,12 @@ class CameraActivity : AppCompatActivity() {
                     it.setSurfaceProvider(binding.cameraPreview.surfaceProvider)
                 }
 
-            imageCapture = ImageCapture.Builder().build()
-//            imageCapture = ImageCapture
-//                .Builder()
-//                .setCaptureMode(CAPTURE_MODE_MINIMIZE_LATENCY)
-//                .setTargetAspectRatio(AspectRatio.RATIO_4_3)
-//                .build()
+//            imageCapture = ImageCapture.Builder().build()
+            imageCapture = ImageCapture
+                .Builder()
+                .setCaptureMode(CAPTURE_MODE_MINIMIZE_LATENCY)
+                .setTargetAspectRatio(AspectRatio.RATIO_4_3)
+                .build()
 
             val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
 
@@ -247,12 +229,37 @@ class CameraActivity : AppCompatActivity() {
 
     private fun allPermissionsGranted() = permissionsGranted(REQUIRED_PERMISSIONS)
 
-    override fun onDestroy() {
-        super.onDestroy()
+    override fun onResume() {
+        super.onResume()
+
+        if (tiltSensor == null) sensorEventListener = null
+        else
+        {
+
+            // TODO("Подписаться на получение событий обновления датчика")
+
+            sensorEventListener = object : SensorEventListener {
+                override fun onSensorChanged(event: SensorEvent) {
+                    val tilt = event.values[2]
+                    binding.errorTextView.visibility = if (abs(tilt) > 2) View.VISIBLE else View.GONE
+                }
+
+                override fun onAccuracyChanged(sensor: Sensor, accuracy: Int) {
+                    //nothing to do
+                }
+            }
+
+            sensorManager.registerListener(sensorEventListener, tiltSensor, SensorManager.SENSOR_DELAY_UI)
+        }
+    }
+
+    override fun onPause() {
+        super.onPause()
         // TODO("Остановить получение событий от датчика")
         if (sensorEventListener != null)
             sensorManager.unregisterListener(sensorEventListener)
     }
+
 
     companion object {
 
